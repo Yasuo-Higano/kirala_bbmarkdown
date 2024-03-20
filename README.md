@@ -1,6 +1,6 @@
 # kirala_bbmarkdown
 
-markdown parser and html renderer written in Gleam language ver 0.33.
+markdown parser and html renderer written in Gleam language ver 1.0.0.
 
 ## parse markdown
 ```

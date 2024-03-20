@@ -1,14 +1,14 @@
 name = "kirala_bbmarkdown"
-version = "1.0.0"
+version = "1.0.2"
 gleam = ">= 0.32.0"
 
 # Fill out these fields if you intend to generate HTML documentation or publish
 # your project to the Hex package manager.
 #
-# description = ""
-# licences = ["Apache-2.0"]
-# repository = { type = "github", user = "username", repo = "project" }
-# links = [{ title = "Website", href = "https://gleam.run" }]
+description = "Markdown parser and html renderer written in Gleam language."
+licences = ["Apache-2.0"]
+repository = { type = "github", user = "Yasuo-Higano", repo = "kirala_bbmarkdown" }
+links = [{ title = "Website", href = "https://github.com/Yasuo-Higano/kirala_bbmarkdown" }]
 
 [dependencies]
 gleam_stdlib = "~> 0.32"

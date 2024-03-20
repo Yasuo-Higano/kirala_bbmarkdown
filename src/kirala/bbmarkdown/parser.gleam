@@ -1,4 +1,3 @@
-import gleam/bit_string
 import gleam/bit_array
 import gleam/string
 import gleam/list
@@ -65,7 +64,7 @@ type SrcPos {
 }
 
 pub fn ret_string_trim(bitstr: BitArray) {
-  let assert Ok(str) = bit_string.to_string(bitstr)
+  let assert Ok(str) = bit_array.to_string(bitstr)
   str
   |> string.trim
 }
@@ -87,8 +86,9 @@ fn get_indent_nextchar(indent: Int, src: BitArray) -> #(Int, String) {
     <<chr, rest:bits>> -> #(
       indent,
       <<chr>>
-      |> ret_string,
+        |> ret_string,
     )
+    unhandable -> #(0, "<unhandable>")
   }
 }
 
@@ -104,6 +104,7 @@ fn get_nextchar(src: BitArray) -> String {
     <<chr, rest:bits>> ->
       <<chr>>
       |> ret_string
+    unhandable -> "<unhandable>"
   }
 }
 
@@ -115,6 +116,7 @@ fn get_line(src: BitArray, acc: BitArray) -> ParseRes {
     | <<"\n":utf8, rest:bits>>
     | <<"\r":utf8, rest:bits>> -> ParseRes(ret_string_trim(acc), rest)
     <<chr, rest:bits>> -> get_line(rest, <<acc:bits, chr>>)
+    unhandable -> ParseRes(ret_string_trim(acc), <<>>)
   }
 }
 
@@ -153,6 +155,7 @@ fn decode_url_(src: BitArray, acc: BitArray) -> ParseRes {
     | <<"\n":utf8, rest:bits>>
     | <<"\r":utf8, rest:bits>> -> ParseRes(ret_string_trim(acc), rest)
     <<chr, rest:bits>> -> decode_url_(rest, <<acc:bits, chr>>)
+    unhandable -> ParseRes(ret_string_trim(acc), <<>>)
   }
 }
 
@@ -172,6 +175,7 @@ fn decode_codeblock_(src: BitArray, acc: BitArray) -> ParseRes {
       ParseRes(ret_string(acc), rest2)
     }
     <<chr, rest:bits>> -> decode_codeblock_(rest, <<acc:bits, chr>>)
+    unhandable -> ParseRes(ret_string(acc), <<>>)
   }
 }
 
@@ -180,6 +184,7 @@ fn decode_codeblock(src: BitArray) -> TokenRes {
   let #(syntax, filename) = case string.split(inf, ":") {
     [syntax] -> #(syntax, "")
     [syntax, filename] -> #(syntax, filename)
+    _ -> #("", "")
   }
   let ParseRes(code, rest1) = decode_codeblock_(rest0, <<>>)
   TokenRes(CodeBlock(syntax, filename, code), rest1)
@@ -192,7 +197,7 @@ fn decode_note(src: BitArray) -> TokenRes {
     parse(
       0,
       code
-      |> bit_string.from_string,
+        |> bit_array.from_string,
     )
   TokenRes(Note(title, t), rest1)
 }
@@ -238,7 +243,7 @@ fn decode_definition_is(indent: Int, src: BitArray) -> TokenRes {
         decode_line(
           right
           |> string.trim
-          |> bit_string.from_string,
+          |> bit_array.from_string,
         )
       //log("t = ~p", [t])
       TokenRes(DefinitionIs(string.trim(left), t), rest)
@@ -248,7 +253,7 @@ fn decode_definition_is(indent: Int, src: BitArray) -> TokenRes {
         decode_line(
           str
           |> string.trim
-          |> bit_string.from_string,
+          |> bit_array.from_string,
         )
       TokenRes(Definition([t]), rest)
     }
@@ -284,11 +289,12 @@ fn get_until1_(src: BitArray, acc: BitArray, nterm: Int) -> ParseRes {
     <<str:size(8), rest:bits>> if str == nterm ->
       ParseRes(ret_string(acc), rest)
     <<chr, rest:bits>> -> get_until1_(rest, <<acc:bits, chr>>, nterm)
+    unhandable -> ParseRes(ret_string(acc), <<>>)
   }
 }
 
 fn get_until1(src: BitArray, terminator: String) -> ParseRes {
-  let <<nterm:size(8)>> = bit_string.from_string(terminator)
+  let assert <<nterm:size(8)>> = bit_array.from_string(terminator)
   get_until1_(src, <<>>, nterm)
 }
 
@@ -298,11 +304,12 @@ fn get_until2_(src: BitArray, acc: BitArray, nterm: Int) -> ParseRes {
     <<str:size(16), rest:bits>> if str == nterm ->
       ParseRes(ret_string(acc), rest)
     <<chr, rest:bits>> -> get_until2_(rest, <<acc:bits, chr>>, nterm)
+    unhandable -> ParseRes(ret_string(acc), <<>>)
   }
 }
 
 fn get_until2(src: BitArray, terminator: String) -> ParseRes {
-  let <<nterm:size(16)>> = bit_string.from_string(terminator)
+  let assert <<nterm:size(16)>> = bit_array.from_string(terminator)
   get_until2_(src, <<>>, nterm)
 }
 
@@ -312,11 +319,12 @@ fn get_until3_(src: BitArray, acc: BitArray, nterm: Int) -> ParseRes {
     <<str:size(24), rest:bits>> if str == nterm ->
       ParseRes(ret_string(acc), rest)
     <<chr, rest:bits>> -> get_until3_(rest, <<acc:bits, chr>>, nterm)
+    unhandable -> ParseRes(ret_string(acc), <<>>)
   }
 }
 
 fn get_until3(src: BitArray, terminator: String) -> ParseRes {
-  let <<nterm:size(24)>> = bit_string.from_string(terminator)
+  let assert <<nterm:size(24)>> = bit_array.from_string(terminator)
   get_until3_(src, <<>>, nterm)
 }
 
@@ -326,11 +334,12 @@ fn get_until4_(src: BitArray, acc: BitArray, nterm: Int) -> ParseRes {
     <<str:size(32), rest:bits>> if str == nterm ->
       ParseRes(ret_string(acc), rest)
     <<chr, rest:bits>> -> get_until4_(rest, <<acc:bits, chr>>, nterm)
+    unhandable -> ParseRes(ret_string(acc), <<>>)
   }
 }
 
 fn get_until4(src: BitArray, terminator: String) -> ParseRes {
-  let <<nterm:size(32)>> = bit_string.from_string(terminator)
+  let assert <<nterm:size(32)>> = bit_array.from_string(terminator)
   get_until4_(src, <<>>, nterm)
 }
 
@@ -357,7 +366,7 @@ fn decode_bold(src: BitArray, terminator: String) -> TokenRes {
   let TokenRes(t, _) =
     decode_line(
       str
-      |> bit_string.from_string,
+      |> bit_array.from_string,
     )
   //log("bold token = ~p", [t])
   TokenRes(Bold(t), rest)
@@ -368,7 +377,7 @@ fn decode_italic(src: BitArray, terminator: String) -> TokenRes {
   let TokenRes(t, _) =
     decode_line(
       str
-      |> bit_string.from_string,
+      |> bit_array.from_string,
     )
   TokenRes(Italic(t), rest)
 }
@@ -378,7 +387,7 @@ fn decode_strikethrough(src: BitArray) -> TokenRes {
   let TokenRes(t, _) =
     decode_line(
       str
-      |> bit_string.from_string,
+      |> bit_array.from_string,
     )
   TokenRes(StrikeThrough(t), rest)
 }
@@ -388,7 +397,7 @@ fn decode_marked_text(src: BitArray) -> TokenRes {
   let TokenRes(t, _) =
     decode_line(
       str
-      |> bit_string.from_string,
+      |> bit_array.from_string,
     )
   TokenRes(MarkedText(t), rest)
 }
@@ -398,7 +407,7 @@ fn decode_inserted_text(src: BitArray) -> TokenRes {
   let TokenRes(t, _) =
     decode_line(
       str
-      |> bit_string.from_string,
+      |> bit_array.from_string,
     )
   TokenRes(InsertedText(t), rest)
 }
@@ -408,7 +417,7 @@ fn decode_footnote_urldef(src: BitArray) -> TokenRes {
   let ParseRes(id, lrest) =
     get_until2(
       line
-      |> bit_string.from_string,
+        |> bit_array.from_string,
       "]:",
     )
   let ParseRes(xurl, lrest2) = get_line(lrest, <<>>)
@@ -431,7 +440,7 @@ fn decode_footnote(src: BitArray) -> TokenRes {
   let ParseRes(id, lrest) =
     get_until2(
       line
-      |> bit_string.from_string,
+        |> bit_array.from_string,
       "]:",
     )
   let TokenRes(t, _) = decode_line(lrest)
@@ -470,7 +479,7 @@ fn decode_footnote_link(src: BitArray) -> TokenRes {
 
 fn decode_urllink(src: BitArray) -> TokenRes {
   let ParseRes(sline, rest) = get_line(src, <<>>)
-  let line = bit_string.from_string(sline)
+  let line = bit_array.from_string(sline)
   let ParseRes(urlid, rest) = get_until2(line, "]:")
   let ParseRes(caption, rest) = get_until1(line, "]")
   //log("urlid = ~p", [urlid])
@@ -505,6 +514,7 @@ fn decode_text(src: BitArray, acc: BitArray) -> TokenRes {
     | <<" *":utf8, rest:bits>>
     | <<"~~ ":utf8, rest:bits>> -> TokenRes(Text(ret_string(acc)), src)
     <<chr, rest:bits>> -> decode_text(rest, <<acc:bits, chr>>)
+    unhandable -> TokenRes(Text(ret_string(acc)), <<>>)
   }
 }
 
@@ -542,7 +552,7 @@ fn decode_line(src: BitArray) -> TokenRes {
   let ParseRes(linestr, rest) = get_line(src, <<>>)
   let line =
     linestr
-    |> bit_string.from_string
+    |> bit_array.from_string
   let ts = decode_line_(<<" ":utf8, line:bits, " ":utf8>>, [])
   TokenRes(Line(ts), rest)
 }
@@ -557,7 +567,7 @@ fn decode_line2(indent: Int, src: BitArray) -> TokenRes {
       let ParseRes(linestr, rest) = get_line(src, <<>>)
       let line =
         linestr
-        |> bit_string.from_string
+        |> bit_array.from_string
       let ts = decode_line_(<<" ":utf8, line:bits, " ":utf8>>, [])
       case get_nextchar(rest) {
         ":" -> TokenRes(DefinitionOf(Line(ts)), rest)
@@ -568,7 +578,7 @@ fn decode_line2(indent: Int, src: BitArray) -> TokenRes {
 }
 
 fn list_remove_last(l: List(a)) -> List(a) {
-  let [_, ..tail] = list.reverse(l)
+  let assert [_, ..tail] = list.reverse(l)
   tail
   |> list.reverse
 }
@@ -597,7 +607,7 @@ fn decode_table_row(src: BitArray) -> #(List(Token), BitArray) {
       let TokenRes(t, _) =
         decode_line(
           str
-          |> bit_string.from_string,
+          |> bit_array.from_string,
         )
       t
     })
@@ -643,11 +653,13 @@ fn parse_(lineno: Int, src: BitArray, indent: Int) -> TokenRes {
     <<"- [ ] ":utf8, rest:bits>> -> decode_checklist(indent, False, rest)
     <<"[^":utf8, rest:bits>> -> decode_footnote(rest)
     <<"*[":utf8, rest:bits>> -> decode_footnote(rest)
-    //<<"[":utf8, rest:bit_string>> -> decode_footnote_urldef(rest)
+    //<<"[":utf8, rest:bit_array>> -> decode_footnote_urldef(rest)
     <<dch1, ".":utf8, rest:bits>> if 0x30 <= dch1 && dch1 <= 0x39 ->
       decode_ordered_list(indent, rest)
-    <<dch1, dch2, ".":utf8, rest:bits>> if 0x30 <= dch1 && dch1 <= 0x39 && 0x30 <= dch2 && dch2 <= 0x39 ->
-      decode_ordered_list(indent, rest)
+    <<dch1, dch2, ".":utf8, rest:bits>> if 0x30 <= dch1
+      && dch1 <= 0x39
+      && 0x30 <= dch2
+      && dch2 <= 0x39 -> decode_ordered_list(indent, rest)
     <<"* ":utf8, rest:bits>>
     | <<"+ ":utf8, rest:bits>>
     | <<"- ":utf8, rest:bits>> -> decode_list(indent, rest)

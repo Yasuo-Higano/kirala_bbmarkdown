@@ -1,4 +1,4 @@
-import gleam/bit_string
+import gleam/bit_array
 import gleam/string
 import gleam/list
 import gleam/dict.{type Dict}
@@ -33,8 +33,11 @@ pub fn html_encode_(src: BitArray, acc: BitArray) -> BitArray {
         <<"&":utf8, rest:bits>> -> #(<<acc:bits, "&amp;":utf8>>, rest)
         <<"<":utf8, rest:bits>> -> #(<<acc:bits, "&lt;":utf8>>, rest)
         <<">":utf8, rest:bits>> -> #(<<acc:bits, "&gt;":utf8>>, rest)
-        //<<160, rest:bit_string>> -> #(<<acc:bit_string, "&nbsp;":utf8>>, rest)
+        //<<160, rest:bit_array>> -> #(<<acc:bit_array, "&nbsp;":utf8>>, rest)
         <<chr, rest:bits>> -> #(<<acc:bits, chr>>, rest)
+        unhandable -> {
+          #(<<acc:bits>>, <<>>)
+        }
       }
       html_encode_(rest, newacc)
     }
@@ -42,9 +45,9 @@ pub fn html_encode_(src: BitArray, acc: BitArray) -> BitArray {
 }
 
 pub fn html_encode(src: String) -> String {
-  html_encode_(bit_string.from_string(src), <<>>)
+  html_encode_(bit_array.from_string(src), <<>>)
   |> ret_string
-  //let bits = html_encode_(bit_string.from_string(src), <<>>)
+  //let bits = html_encode_(bit_array.from_string(src), <<>>)
   //log("~p", [bits])
   //bits
   //|> ret_string
@@ -173,15 +176,15 @@ pub fn emit(symbols: Dict(String, String), t: Token) -> String {
 }
 
 pub fn convert(src: String) -> String {
-  convert_bytes(bit_string.from_string(src))
+  convert_bytes(bit_array.from_string(src))
 }
 
 pub fn convert_outline(src: String) -> String {
-  convert_bytes_outline(bit_string.from_string(src))
+  convert_bytes_outline(bit_array.from_string(src))
 }
 
 pub fn convert_digest(src: String) -> String {
-  convert_bytes_digest(bit_string.from_string(src))
+  convert_bytes_digest(bit_array.from_string(src))
 }
 
 fn convert_(
@@ -223,32 +226,30 @@ pub fn convert_tokens_(
       let #(prev, acc) = acx
       case #(prev, t) {
         // List
-        #(ListItem(_, indent1, t1), ListItem(_, indent2, t2)) if indent1 == indent2 -> #(
-          t,
-          [[emit(symbols, t)], ..acc],
-        )
-        #(ListItem(_, indent1, t1), ListItem(_, indent2, t2)) if indent1 > indent2 -> #(
-          t,
-          [[ntimes(indent1 - indent2, "</ul>"), emit(symbols, t)], ..acc],
-        )
-        #(ListItem(_, indent1, t1), ListItem(_, indent2, t2)) if indent1 < indent2 -> #(
-          t,
-          [[ntimes(indent2 - indent1, "<ul>"), emit(symbols, t)], ..acc],
-        )
-        #(ListItem(_, indent1, t1), _) -> #(
-          t,
-          [[ntimes(indent1, "</ul>"), emit(symbols, t)], ..acc],
-        )
-        #(_, ListItem(_, indent2, t2)) -> #(
-          t,
-          [[ntimes(indent2, "<ul>"), emit(symbols, t)], ..acc],
-        )
+        #(ListItem(_, indent1, t1), ListItem(_, indent2, t2)) if indent1
+          == indent2 -> #(t, [[emit(symbols, t)], ..acc])
+        #(ListItem(_, indent1, t1), ListItem(_, indent2, t2)) if indent1
+          > indent2 -> #(t, [
+          [ntimes(indent1 - indent2, "</ul>"), emit(symbols, t)],
+          ..acc
+        ])
+        #(ListItem(_, indent1, t1), ListItem(_, indent2, t2)) if indent1
+          < indent2 -> #(t, [
+          [ntimes(indent2 - indent1, "<ul>"), emit(symbols, t)],
+          ..acc
+        ])
+        #(ListItem(_, indent1, t1), _) -> #(t, [
+          [ntimes(indent1, "</ul>"), emit(symbols, t)],
+          ..acc
+        ])
+        #(_, ListItem(_, indent2, t2)) -> #(t, [
+          [ntimes(indent2, "<ul>"), emit(symbols, t)],
+          ..acc
+        ])
 
         // BlockQuote
-        #(BlockQuote(indent1, t1), BlockQuote(indent2, t2)) if indent1 == indent2 -> #(
-          t,
-          [[emit(symbols, t)], ..acc],
-        )
+        #(BlockQuote(indent1, t1), BlockQuote(indent2, t2)) if indent1
+          == indent2 -> #(t, [[emit(symbols, t)], ..acc])
         #(BlockQuote(indent1, t1), BlockQuote(indent2, t2)) if indent1 > indent2 -> #(
           t,
           [
@@ -260,14 +261,14 @@ pub fn convert_tokens_(
           t,
           [[ntimes(indent2 - indent1, "<blockquote>"), emit(symbols, t)], ..acc],
         )
-        #(BlockQuote(indent1, t1), _) -> #(
-          t,
-          [[ntimes(indent1, "</blockquote>"), emit(symbols, t)], ..acc],
-        )
-        #(_, BlockQuote(indent2, t2)) -> #(
-          t,
-          [[ntimes(indent2, "<blockquote>"), emit(symbols, t)], ..acc],
-        )
+        #(BlockQuote(indent1, t1), _) -> #(t, [
+          [ntimes(indent1, "</blockquote>"), emit(symbols, t)],
+          ..acc
+        ])
+        #(_, BlockQuote(indent2, t2)) -> #(t, [
+          [ntimes(indent2, "<blockquote>"), emit(symbols, t)],
+          ..acc
+        ])
 
         // CodeLine
         #(CodeLine(t1), CodeLine(t2)) -> #(t, [[emit(symbols, t)], ..acc])
@@ -275,10 +276,10 @@ pub fn convert_tokens_(
         #(_, CodeLine(t2)) -> #(t, [["<pre><code>", emit(symbols, t)], ..acc])
 
         // Definition
-        #(_, DefinitionOf(t2)) -> #(
-          t,
-          [["<dl><dt>", emit(symbols, t2), "</dt>"], ..acc],
-        )
+        #(_, DefinitionOf(t2)) -> #(t, [
+          ["<dl><dt>", emit(symbols, t2), "</dt>"],
+          ..acc
+        ])
         #(_, Definition(t2)) -> {
           let tlines =
             list.map(t2, fn(e) { [emit(symbols, e), "<br>"] })

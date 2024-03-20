@@ -3,14 +3,17 @@ import gleeunit/should
 import kirala/bbmarkdown/parser
 import kirala/bbmarkdown/html_renderer
 import gleam/io
-import gleam/bit_array
 import gleam/result
+import kirala/peasy
+import gleam/list
+import gleam/float
+import gleam/bit_array
 
 pub fn main() {
   gleeunit.main()
 }
 
-pub fn test() {
+pub fn sample() {
   // markdown sample from https://markdown-it.github.io/
   let markdown =
     "
@@ -140,11 +143,20 @@ Like links, Images also have a footnote style syntax
 
 With a reference later in the document defining the URL location:
   "
+}
+
+pub fn run_test() {
+  let markdown = sample()
 
   io.println(
     "\n\n# AST ----------------------------------------------------------------",
   )
-  let ast = parser.parse(1, bit_array.from_string(markdown))
+  let ast =
+    parser.parse(
+      1,
+      markdown
+      |> bit_array.from_string,
+    )
   io.debug(ast)
 
   io.println(
@@ -153,4 +165,16 @@ With a reference later in the document defining the URL location:
   let html = html_renderer.convert(markdown)
   io.println(html)
   True
+}
+
+pub fn benchmark() {
+  let start = peasy.now()
+  let markdown = sample()
+  list.each(list.range(1, 1000), fn(_) {
+    let html = html_renderer.convert(markdown)
+    Nil
+  })
+  let stop = peasy.now()
+  let elapsed = stop -. start
+  io.print("elapsed: " <> float.to_string(elapsed) <> "seconds\n")
 }
